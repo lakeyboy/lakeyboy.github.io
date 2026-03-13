@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes">
-    <title>🍻 打工人 · 下班后隐藏模块</title>
+    <title>🍻 打工人 · 工时倒计时 · 无多余模块</title>
     <style>
         * {
             box-sizing: border-box;
@@ -159,39 +159,6 @@
             align-items: center;
             gap: 4px;
         }
-        .next-target {
-            background: #fbe9d8;
-            border-radius: 30px;
-            padding: 14px 18px;
-            margin: 16px 0 12px;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            flex-wrap: wrap;
-            gap: 10px;
-        }
-        .next-label {
-            display: flex;
-            align-items: center;
-            gap: 6px;
-            font-weight: 600;
-            color: #623f20;
-        }
-        .next-datetime {
-            background: #2d241c;
-            color: #ffdbb5;
-            padding: 8px 18px;
-            border-radius: 40px;
-            font-family: monospace;
-            font-size: 1.1rem;
-            font-weight: 500;
-            letter-spacing: 0.5px;
-            box-shadow: 0 3px 0 #0f0b07;
-            white-space: nowrap;
-            max-width: 100%;
-            overflow-x: auto;
-            -webkit-overflow-scrolling: touch;
-        }
         /* 倒计时容器，用于隐藏 */
         #countdownContainer {
             display: block;
@@ -289,15 +256,12 @@
             .current-time-value { font-size: 1.3rem; }
             .countdown-number { font-size: 1.9rem; }
             .input-item input[type="time"] { padding: 12px 12px; font-size: 1rem; }
-            .next-datetime { font-size: 1rem; }
             .status-badge { font-size: 1.1rem; padding: 10px 20px; }
             .worked-badge { font-size: 1rem; padding: 8px 16px; }
         }
         @media (max-width: 360px) {
             .current-time-box { flex-direction: column; align-items: flex-start; }
             .current-time-value { align-self: flex-end; }
-            .next-target { flex-direction: column; align-items: flex-start; }
-            .next-datetime { align-self: flex-end; }
             .input-item { min-width: 100%; }
         }
         @media (orientation: landscape) and (max-height: 500px) {
@@ -307,10 +271,10 @@
             .countdown-block { padding: 16px; }
         }
         button, input { -webkit-tap-highlight-color: transparent; }
-        .next-datetime::-webkit-scrollbar, .current-time-value::-webkit-scrollbar {
+        .current-time-value::-webkit-scrollbar {
             height: 3px; background: transparent;
         }
-        .next-datetime::-webkit-scrollbar-thumb, .current-time-value::-webkit-scrollbar-thumb {
+        .current-time-value::-webkit-scrollbar-thumb {
             background: #b28b64; border-radius: 10px;
         }
     </style>
@@ -318,9 +282,9 @@
 <body>
 <div class="card">
     <h1>
-        <span>⏳</span> 工时·午休·智能隐藏
+        <span>⏳</span> 工时·午休·纯净版
     </h1>
-    <div class="sub">下班后倒计时&工作时长自动隐藏 · 移动优化</div>
+    <div class="sub">精确到秒 · 下班后自动隐藏模块 · 无冗余信息</div>
 
     <!-- 当前时间显示 -->
     <div class="current-time-box">
@@ -357,12 +321,6 @@
         </div>
     </div>
 
-    <!-- 下次下班具体时刻（始终显示） -->
-    <div class="next-target">
-        <span class="next-label">⏰ 下次下班</span>
-        <span class="next-datetime" id="nextEndTime">----/--/-- --:--</span>
-    </div>
-
     <!-- 倒计时大屏容器（可隐藏） -->
     <div id="countdownContainer">
         <div class="countdown-block">
@@ -396,7 +354,6 @@
         const restStartInput = document.getElementById('restStart');
         const restEndInput = document.getElementById('restEnd');
         const liveClockSpan = document.getElementById('liveClock');
-        const nextEndSpan = document.getElementById('nextEndTime');
         const countdownDisplay = document.getElementById('countdownDisplay');
         const workStatusSpan = document.getElementById('workStatus');
         const workedDisplay = document.getElementById('workedDisplay');
@@ -406,7 +363,7 @@
         const countdownContainer = document.getElementById('countdownContainer');
         const workedContainer = document.getElementById('workedContainer');
 
-        const STORAGE_KEY = 'workTimeConfigV4';
+        const STORAGE_KEY = 'workTimeConfigV5'; // 新版本存储键
 
         // 加载保存的时间
         function loadSavedTimes() {
@@ -582,16 +539,6 @@
             return result;
         }
 
-        function formatNextEnd(d) {
-            if (!d) return '--/--/-- --:--';
-            const year = d.getFullYear();
-            const month = String(d.getMonth() + 1).padStart(2,'0');
-            const day = String(d.getDate()).padStart(2,'0');
-            const hours = String(d.getHours()).padStart(2,'0');
-            const mins = String(d.getMinutes()).padStart(2,'0');
-            return `${year}/${month}/${day} ${hours}:${mins}`;
-        }
-
         function updateClock() {
             const now = new Date();
             const y = now.getFullYear();
@@ -611,11 +558,9 @@
             const restEndVal = restEndInput.value;
 
             if (!startVal || !endVal) {
-                nextEndSpan.textContent = '--/--/-- --:--';
                 countdownDisplay.textContent = '请设置时间';
                 workStatusSpan.textContent = '⏳ 等待输入';
                 workedDisplay.textContent = '已工作 --小时--分--秒';
-                // 显示所有容器（默认）
                 countdownContainer.style.display = 'block';
                 workedContainer.style.display = 'block';
                 return;
@@ -623,7 +568,6 @@
 
             const details = computeDetails(now, startVal, endVal);
             if (!details) {
-                nextEndSpan.textContent = '--/--/-- --:--';
                 countdownDisplay.textContent = '时间格式有误';
                 workStatusSpan.textContent = '⚠️ 错误';
                 workedDisplay.textContent = '已工作 --小时--分--秒';
@@ -633,33 +577,25 @@
             }
 
             const { nextEnd, status, currentShiftStart, currentShiftEnd } = details;
-            nextEndSpan.textContent = formatNextEnd(nextEnd);
             workStatusSpan.textContent = status;
 
-            // 根据状态控制模块显示/隐藏
             if (status === '已下班 🎉') {
-                // 下班：隐藏倒计时和已工作时长
                 countdownContainer.style.display = 'none';
                 workedContainer.style.display = 'none';
             } else if (status === '未上班 🌅') {
-                // 未上班：显示倒计时（距离今天下班），隐藏工作时长
                 countdownContainer.style.display = 'block';
                 workedContainer.style.display = 'none';
-                // 倒计时显示距离今天下班（但今天还没上班，所以今天下班就是nextEnd）
                 const remainingMs = nextEnd - now;
                 countdownDisplay.textContent = formatRemaining(remainingMs);
             } else if (status === '上班中 💼') {
-                // 上班中：显示两者
                 countdownContainer.style.display = 'block';
                 workedContainer.style.display = 'block';
-                // 倒计时距离当前班次结束
                 if (currentShiftEnd) {
                     const remainingMs = currentShiftEnd - now;
                     countdownDisplay.textContent = formatRemaining(remainingMs);
                 } else {
                     countdownDisplay.textContent = '计算异常';
                 }
-                // 工作时长计算
                 if (currentShiftStart && currentShiftEnd) {
                     const restStartObj = parseTimeStr(restStartVal);
                     const restEndObj = parseTimeStr(restEndVal);
@@ -674,7 +610,6 @@
                     workedDisplay.textContent = '已工作 --小时--分--秒';
                 }
             } else {
-                // 兜底（理论上不会到这里）
                 countdownContainer.style.display = 'block';
                 workedContainer.style.display = 'block';
                 countdownDisplay.textContent = formatRemaining(nextEnd - now);
