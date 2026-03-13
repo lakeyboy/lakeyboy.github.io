@@ -1,0 +1,537 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.5, user-scalable=yes">
+    <title>🍻 打工人下班倒计时 · 精确到秒</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            font-family: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+            margin: 0;
+            padding: 0;
+        }
+        body {
+            min-height: 100vh;
+            background: linear-gradient(145deg, #f9f3e8 0%, #fff4e4 100%);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 16px;
+            margin: 0;
+        }
+        .card {
+            max-width: 600px; /* 稍微加宽一点适应秒显示 */
+            width: 100%;
+            background: rgba(255, 255, 255, 0.8);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border-radius: 48px;
+            box-shadow: 0 25px 45px -10px rgba(0, 0, 0, 0.15), 0 2px 8px rgba(0,0,0,0.05);
+            padding: 32px 28px;
+            border: 1px solid rgba(255,245,235,0.6);
+            transition: all 0.2s;
+        }
+        h1 {
+            font-size: 2.1rem;
+            font-weight: 700;
+            letter-spacing: -0.02em;
+            color: #2d2a24;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 8px;
+        }
+        h1 span {
+            background: #f1d5b5;
+            font-size: 1.8rem;
+            padding: 0 10px;
+            border-radius: 60px;
+            line-height: 1.3;
+        }
+        .sub {
+            color: #7e6e5d;
+            font-size: 1rem;
+            font-weight: 400;
+            margin-bottom: 28px;
+            border-left: 4px solid #f3b37f;
+            padding-left: 16px;
+            background: rgba(243, 179, 127, 0.08);
+            border-radius: 0 20px 20px 0;
+        }
+        .time-panel {
+            background: #ffffffd6;
+            border-radius: 40px;
+            padding: 22px 20px;
+            margin-bottom: 24px;
+            border: 1px solid #ffeede;
+            box-shadow: inset 0 2px 4px #fff9f0, 0 8px 18px -8px rgba(100,70,40,0.2);
+        }
+        .current-time-box {
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+            background: #fdefdb;
+            padding: 14px 20px;
+            border-radius: 120px;
+            margin-bottom: 24px;
+            color: #3e362e;
+            font-weight: 500;
+        }
+        .current-time-label {
+            font-size: 1rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: #a76326;
+        }
+        .current-time-value {
+            font-size: 1.8rem;
+            font-weight: 700;
+            font-family: 'JetBrains Mono', 'Cascadia Code', monospace;
+            background: #3e2e1e;
+            color: #fbead0;
+            padding: 6px 18px;
+            border-radius: 60px;
+            box-shadow: 0 4px 0 #1f160f;
+        }
+        .input-group {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 16px;
+            justify-content: space-between;
+        }
+        .input-item {
+            flex: 1 1 180px;
+        }
+        .input-item label {
+            display: block;
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: #664d38;
+            margin-bottom: 8px;
+            margin-left: 10px;
+        }
+        .input-item input[type="time"] {
+            width: 100%;
+            background: #fffbf5;
+            border: 2px solid #ead6c2;
+            border-radius: 40px;
+            padding: 16px 20px;
+            font-size: 1.3rem;
+            font-weight: 500;
+            color: #2d241c;
+            outline: none;
+            transition: 0.2s;
+            box-shadow: 0 6px 0 #d0b99e;
+        }
+        .input-item input[type="time"]:focus {
+            border-color: #f3a15d;
+            box-shadow: 0 6px 0 #b57a42;
+        }
+        .next-target {
+            background: #fbe9d8;
+            border-radius: 30px;
+            padding: 16px 22px;
+            margin: 24px 0 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+        .next-label {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-weight: 600;
+            color: #623f20;
+        }
+        .next-datetime {
+            background: #2d241c;
+            color: #ffdbb5;
+            padding: 10px 22px;
+            border-radius: 50px;
+            font-family: monospace;
+            font-size: 1.2rem;
+            font-weight: 500;
+            letter-spacing: 0.5px;
+            box-shadow: 0 3px 0 #0f0b07;
+        }
+        .countdown-block {
+            background: #362f28;
+            border-radius: 60px;
+            padding: 28px 16px; /* 左右内边距略减，以防文字溢出 */
+            text-align: center;
+            margin: 20px 0 16px;
+            box-shadow: 0 12px 0 #1d1712, inset 0 2px 10px #ffe1ae40;
+        }
+        .countdown-title {
+            color: #c9ad8a;
+            font-size: 1rem;
+            letter-spacing: 3px;
+            text-transform: uppercase;
+            margin-bottom: 12px;
+        }
+        .countdown-number {
+            font-size: 2.8rem;  /* 稍微调小一点，给秒数腾空间，但仍然显眼 */
+            font-weight: 800;
+            line-height: 1.2;
+            color: #fff1de;
+            font-family: 'JetBrains Mono', monospace;
+            text-shadow: 0 4px 0 #a76529;
+            word-break: break-word;
+        }
+        .countdown-unit {
+            font-size: 1.2rem;
+            color: #fbc89a;
+            margin-left: 8px;
+        }
+        .status-badge {
+            display: inline-block;
+            background: #eedac7;
+            border-radius: 40px;
+            padding: 12px 28px;
+            font-size: 1.3rem;
+            font-weight: 700;
+            color: #3e2a1a;
+            box-shadow: 0 5px 0 #b28b64;
+            margin-top: 8px;
+        }
+        .footer-note {
+            text-align: center;
+            color: #9b8a78;
+            font-size: 0.85rem;
+            margin-top: 30px;
+            border-top: 1px dashed #e5cfbc;
+            padding-top: 20px;
+        }
+        .footer-note button {
+            background: none;
+            border: 1px solid #ccb79f;
+            border-radius: 40px;
+            padding: 6px 16px;
+            color: #6b4f37;
+            font-weight: 500;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+        .footer-note button:hover {
+            background: #cfb89d;
+            color: white;
+        }
+        .error-msg {
+            color: #c0431c;
+            font-weight: 500;
+            text-align: center;
+            background: #ffe3d3;
+            border-radius: 60px;
+            padding: 10px;
+        }
+        @media (max-width: 500px) {
+            .countdown-number { font-size: 2.2rem; }
+            .current-time-value { font-size: 1.4rem; }
+        }
+        @media (max-width: 380px) {
+            .countdown-number { font-size: 1.8rem; }
+        }
+    </style>
+</head>
+<body>
+<div class="card">
+    <h1>
+        <span>⏳</span> 下班倒计时 · 秒动人心
+    </h1>
+    <div class="sub">打工人专属 · 精确到秒 · 自动跨天</div>
+
+    <!-- 当前时间显示 -->
+    <div class="current-time-box">
+        <span class="current-time-label">现在时刻</span>
+        <span class="current-time-value" id="liveClock">--:--:--</span>
+    </div>
+
+    <!-- 上下班输入 -->
+    <div class="time-panel">
+        <div class="input-group">
+            <div class="input-item">
+                <label>🟢 上班时间</label>
+                <input type="time" id="startTime" value="09:00">
+            </div>
+            <div class="input-item">
+                <label>🔴 下班时间</label>
+                <input type="time" id="endTime" value="18:00">
+            </div>
+        </div>
+    </div>
+
+    <!-- 下次下班具体时刻 -->
+    <div class="next-target">
+        <span class="next-label">⏰ 下次下班</span>
+        <span class="next-datetime" id="nextEndTime">----/--/-- --:--</span>
+    </div>
+
+    <!-- 倒计时大屏（含秒） -->
+    <div class="countdown-block">
+        <div class="countdown-title">距离下班还剩</div>
+        <div class="countdown-number" id="countdownDisplay">0小时0分0秒</div>
+    </div>
+
+    <!-- 状态标签 (上班中/已下班/未上班) -->
+    <div style="text-align: center;" id="statusContainer">
+        <span class="status-badge" id="workStatus">⚡ 计算中...</span>
+    </div>
+
+    <!-- 底部小工具：重置默认值 + 说明 -->
+    <div class="footer-note">
+        <button id="resetDefault">🔄 重置 09:00 – 18:00</button>
+        <p style="margin-top: 12px;">💡 下班时间若早于上班时间，自动视为次日（支持夜班）· 秒数实时跳动</p>
+    </div>
+</div>
+
+<script>
+    (function() {
+        // DOM elements
+        const startInput = document.getElementById('startTime');
+        const endInput = document.getElementById('endTime');
+        const liveClockSpan = document.getElementById('liveClock');
+        const nextEndSpan = document.getElementById('nextEndTime');
+        const countdownDisplay = document.getElementById('countdownDisplay');
+        const workStatusSpan = document.getElementById('workStatus');
+        const resetBtn = document.getElementById('resetDefault');
+
+        // 存储键
+        const STORAGE_KEY = 'workTimeConfig';
+
+        // 初始化默认值 (优先从localStorage读取)
+        function loadSavedTimes() {
+            const saved = localStorage.getItem(STORAGE_KEY);
+            if (saved) {
+                try {
+                    const { start, end } = JSON.parse(saved);
+                    if (start) startInput.value = start;
+                    if (end) endInput.value = end;
+                } catch (e) {}
+            } else {
+                // 默认 09:00 / 18:00 (已经写在html value中，但为了保险)
+                startInput.value = '09:00';
+                endInput.value = '18:00';
+            }
+        }
+
+        // 保存到localStorage
+        function saveTimes() {
+            const config = {
+                start: startInput.value,
+                end: endInput.value
+            };
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(config));
+        }
+
+        // 重置为常规白班
+        function resetToDefault() {
+            startInput.value = '09:00';
+            endInput.value = '18:00';
+            saveTimes();
+            updateRemaining(); // 立即刷新
+        }
+
+        // 监听input改变，自动保存并更新
+        startInput.addEventListener('change', () => { saveTimes(); updateRemaining(); });
+        endInput.addEventListener('change', () => { saveTimes(); updateRemaining(); });
+        // 也监听input事件，方便实时
+        startInput.addEventListener('input', () => { saveTimes(); updateRemaining(); });
+        endInput.addEventListener('input', () => { saveTimes(); updateRemaining(); });
+        resetBtn.addEventListener('click', resetToDefault);
+
+        // ---------- 核心逻辑 ----------
+        // 解析 "HH:MM" 返回 { hour, minute }
+        function parseTimeStr(timeStr) {
+            if (!timeStr || !timeStr.includes(':')) return null;
+            const parts = timeStr.split(':');
+            const hour = parseInt(parts[0], 10);
+            const minute = parseInt(parts[1], 10);
+            if (isNaN(hour) || isNaN(minute)) return null;
+            return { hour, minute };
+        }
+
+        // 根据基准日期和 小时/分钟 生成 Date 对象 (本地时间)
+        function buildDateFromBase(baseDate, hour, minute) {
+            const d = new Date(baseDate);
+            d.setHours(hour, minute, 0, 0);  // 秒、毫秒归零
+            return d;
+        }
+
+        // 获取给定日期对应的下班时间 (考虑跨天: 若 end <= start 则 end 加一天)
+        function getEndDateForBase(baseDate, startHour, startMin, endHour, endMin) {
+            const startDate = buildDateFromBase(baseDate, startHour, startMin);
+            let endDate = buildDateFromBase(baseDate, endHour, endMin);
+            // 如果下班时间 <= 上班时间，说明跨午夜，下班在第二天
+            if (endDate <= startDate) {
+                endDate.setDate(endDate.getDate() + 1);
+            }
+            return endDate;
+        }
+
+        // 计算下一个下班的精确时间和剩余毫秒，同时返回状态 (上班/下班/未上班)
+        function computeNextEndAndStatus(now, startStr, endStr) {
+            // 如果输入无效，返回null
+            const startTime = parseTimeStr(startStr);
+            const endTime = parseTimeStr(endStr);
+            if (!startTime || !endTime) return null;
+
+            const { hour: sH, minute: sM } = startTime;
+            const { hour: eH, minute: eM } = endTime;
+
+            // 准备三个基准日期：昨天、今天、明天
+            const yesterday = new Date(now);
+            yesterday.setDate(yesterday.getDate() - 1);
+
+            const today = new Date(now);
+
+            const tomorrow = new Date(now);
+            tomorrow.setDate(tomorrow.getDate() + 1);
+
+            // 获取对应的end日期 (已处理跨天)
+            const endYesterday = getEndDateForBase(yesterday, sH, sM, eH, eM);
+            const endToday = getEndDateForBase(today, sH, sM, eH, eM);
+            const endTomorrow = getEndDateForBase(tomorrow, sH, sM, eH, eM);
+
+            // 收集所有大于 now 的end候选
+            const candidates = [endYesterday, endToday, endTomorrow].filter(d => d > now);
+            if (candidates.length === 0) return null; // 理论上不可能，但兜底
+
+            // 找到最小的（最近的）end
+            const nextEnd = new Date(Math.min(...candidates.map(d => d.getTime())));
+
+            // ---------- 判断当前状态 (上班/下班) ----------
+            // 我们需要昨天和今天的 [start, end) 区间来判断now是否在班
+            const startYesterday = buildDateFromBase(yesterday, sH, sM);
+            let endYesterdayForInterval = getEndDateForBase(yesterday, sH, sM, eH, eM); // 与上面相同
+
+            const startToday = buildDateFromBase(today, sH, sM);
+            let endTodayForInterval = getEndDateForBase(today, sH, sM, eH, eM);
+
+            // 区间定义: [start, end)  注意endYesterdayForInterval可能比startYesterday大1天
+            const inYesterdayShift = (now >= startYesterday && now < endYesterdayForInterval);
+            const inTodayShift = (now >= startToday && now < endTodayForInterval);
+
+            let status = '已下班 🏠';   // 默认下班
+            if (inYesterdayShift || inTodayShift) {
+                status = '上班中 💼';
+            } else {
+                // 如果都不在，检查是否在未来上班前 (还没上班)  —— 可细分「未上班」但为了简洁，用已下班表示，或可加一种
+                // 如果 now < startToday 且 不在昨天区间，可显示「未上班」
+                if (now < startToday && !inYesterdayShift) {
+                    status = '未上班 🌅';
+                } else {
+                    status = '已下班 🎉';
+                }
+            }
+
+            return { nextEnd, status };
+        }
+
+        // 格式化输出: 下次下班时间 年月日 时:分
+        function formatNextEnd(d) {
+            if (!d) return '--/--/-- --:--';
+            const year = d.getFullYear();
+            const month = String(d.getMonth() + 1).padStart(2,'0');
+            const day = String(d.getDate()).padStart(2,'0');
+            const hours = String(d.getHours()).padStart(2,'0');
+            const mins = String(d.getMinutes()).padStart(2,'0');
+            return `${year}/${month}/${day} ${hours}:${mins}`;
+        }
+
+        /**
+         * 格式化剩余时间 (毫秒 -> X天X小时X分钟X秒)
+         * 修改：加入秒显示，且当剩余为0或负数时显示 0小时0分0秒
+         */
+        function formatRemaining(ms) {
+            if (ms < 0) return '0小时0分0秒';
+            const totalSeconds = Math.floor(ms / 1000);
+            const days = Math.floor(totalSeconds / 86400);
+            const hours = Math.floor((totalSeconds % 86400) / 3600);
+            const minutes = Math.floor((totalSeconds % 3600) / 60);
+            const seconds = totalSeconds % 60;
+
+            let result = '';
+            if (days > 0) {
+                result += `${days}天`;
+            }
+            // 小时、分钟总是显示（即使为0），以保证格式统一；秒总是显示
+            result += `${hours}小时${minutes}分${seconds}秒`;
+            return result;
+        }
+
+        // 更新当前时间显示 (实时时钟)
+        function updateClock() {
+            const now = new Date();
+            const y = now.getFullYear();
+            const M = String(now.getMonth()+1).padStart(2,'0');
+            const d = String(now.getDate()).padStart(2,'0');
+            const hh = String(now.getHours()).padStart(2,'0');
+            const mm = String(now.getMinutes()).padStart(2,'0');
+            const ss = String(now.getSeconds()).padStart(2,'0');
+            liveClockSpan.textContent = `${y}/${M}/${d} ${hh}:${mm}:${ss}`;
+        }
+
+        // 主要更新函数：读取输入、计算、渲染
+        function updateRemaining() {
+            const now = new Date();
+            const startVal = startInput.value;
+            const endVal = endInput.value;
+
+            // 有效性快速检查
+            if (!startVal || !endVal) {
+                nextEndSpan.textContent = '--/--/-- --:--';
+                countdownDisplay.textContent = '请设置时间';
+                workStatusSpan.textContent = '⏳ 等待输入';
+                return;
+            }
+
+            const result = computeNextEndAndStatus(now, startVal, endVal);
+            if (!result) {
+                nextEndSpan.textContent = '--/--/-- --:--';
+                countdownDisplay.textContent = '时间格式有误';
+                workStatusSpan.textContent = '⚠️ 错误';
+                return;
+            }
+
+            const { nextEnd, status } = result;
+            const remainingMs = nextEnd - now;
+
+            // 更新UI
+            nextEndSpan.textContent = formatNextEnd(nextEnd);
+            countdownDisplay.textContent = formatRemaining(remainingMs);
+            workStatusSpan.textContent = status;
+        }
+
+        // 定时器: 每秒刷新时钟 + 剩余时间
+        function tick() {
+            updateClock();
+            updateRemaining();
+        }
+
+        // 启动定时器
+        let timer = setInterval(tick, 1000);
+
+        // 加载保存的时间，然后立即刷新一次
+        loadSavedTimes();
+        tick(); // 立即执行一次
+
+        // （可选）清理定时器, 但本页面长期运行，无需清理
+        window.addEventListener('beforeunload', function() {
+            clearInterval(timer);
+        });
+
+        // 如果用户清空输入，给个后备
+        [startInput, endInput].forEach(inp => {
+            inp.addEventListener('blur', function() {
+                if (!this.value) {
+                    // 如果空了，让updateRemaining显示错误提示
+                }
+            });
+        });
+    })();
+</script>
+</body>
+</html>
