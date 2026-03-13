@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes">
-    <title>🍻 打工人 · 午休扣除 · 已工作时长</title>
+    <title>🍻 打工人 · 工时精确 · 下班后归零</title>
     <style>
         * {
             box-sizing: border-box;
@@ -309,9 +309,9 @@
 <body>
 <div class="card">
     <h1>
-        <span>⏳</span> 工时·午休·倒计时
+        <span>⏳</span> 工时·午休·秒动
     </h1>
-    <div class="sub">精确到秒 · 自动扣除午休 · 移动优化</div>
+    <div class="sub">精确到秒 · 下班后自动归零 · 移动优化</div>
 
     <!-- 当前时间显示 -->
     <div class="current-time-box">
@@ -371,7 +371,7 @@
     <!-- 底部小工具：重置默认值 + 说明 -->
     <div class="footer-note">
         <button id="resetDefault">🔄 重置 09:00–18:00 午休12:00–13:00</button>
-        <p style="margin-top: 12px;">💡 下班早于上班视为次日 · 午休跨天自动忽略 · 工时扣除午休</p>
+        <p style="margin-top: 12px;">💡 下班后倒计时归零 · 工时扣除午休 · 跨天支持</p>
     </div>
 </div>
 
@@ -389,7 +389,7 @@
         const workedDisplay = document.getElementById('workedDisplay');
         const resetBtn = document.getElementById('resetDefault');
 
-        const STORAGE_KEY = 'workTimeConfigV2'; // 新版本存储键
+        const STORAGE_KEY = 'workTimeConfigV3'; // 新版本存储键
 
         // 加载保存的时间
         function loadSavedTimes() {
@@ -466,7 +466,7 @@
             return endDate;
         }
 
-        // 核心计算：返回 nextEnd, status, currentShiftStart, currentShiftEnd (若在上班中)
+        // 核心计算：返回 nextEnd, status, currentShiftStart, currentShiftEnd
         function computeDetails(now, startStr, endStr) {
             const startTime = parseTimeStr(startStr);
             const endTime = parseTimeStr(endStr);
@@ -522,34 +522,29 @@
         function calculateWorkedSeconds(now, shiftStart, shiftEnd, restStartObj, restEndObj) {
             if (!shiftStart || now < shiftStart) return 0;
 
-            // 基于班次开始日期构建午休起止（午休通常在同一天，但如果班次跨天，午休日期可能与班次开始同一天，此处简化）
+            // 基于班次开始日期构建午休起止
             const restStart = new Date(shiftStart);
             restStart.setHours(restStartObj.hour, restStartObj.minute, 0, 0);
             const restEnd = new Date(shiftStart);
             restEnd.setHours(restEndObj.hour, restEndObj.minute, 0, 0);
 
-            // 如果午休结束 <= 开始，认为可能跨天，加一天处理（但仍限制在班次内）
             if (restEnd <= restStart) {
                 restEnd.setDate(restEnd.getDate() + 1);
             }
 
-            // 将午休区间裁剪到班次区间内
+            // 裁剪到班次区间
             const shiftStartMs = shiftStart.getTime();
             const shiftEndMs = shiftEnd.getTime();
             const restStartMs = Math.max(restStart.getTime(), shiftStartMs);
             const restEndMs = Math.min(restEnd.getTime(), shiftEndMs);
 
-            // 如果当前时间在午休区间内，工作时长只算到午休开始
             const nowMs = now.getTime();
             let workedEndMs = Math.min(nowMs, shiftEndMs);
             if (nowMs > restStartMs && nowMs < restEndMs) {
-                workedEndMs = restStartMs; // 午休期间，工作时长截至午休开始
+                workedEndMs = restStartMs;
             }
 
-            // 总时长 = workedEndMs - shiftStartMs
             let totalWorkMs = workedEndMs - shiftStartMs;
-
-            // 扣除落在 [shiftStartMs, workedEndMs] 内的午休时间
             const restIntersectStart = Math.max(restStartMs, shiftStartMs);
             const restIntersectEnd = Math.min(restEndMs, workedEndMs);
             const restDurationMs = Math.max(0, restIntersectEnd - restIntersectStart);
@@ -631,26 +626,51 @@
             }
 
             const { nextEnd, status, currentShiftStart, currentShiftEnd } = details;
-            const remainingMs = nextEnd - now;
-            nextEndSpan.textContent = formatNextEnd(nextEnd);
-            countdownDisplay.textContent = formatRemaining(remainingMs);
-            workStatusSpan.textContent = status;
 
-            // 计算已工作时长（仅当上班中）
-            let workedSeconds = 0;
-            if (status.includes('上班中') && currentShiftStart && currentShiftEnd) {
-                const restStartObj = parseTimeStr(restStartVal);
-                const restEndObj = parseTimeStr(restEndVal);
-                if (restStartObj && restEndObj) {
-                    workedSeconds = calculateWorkedSeconds(now, currentShiftStart, currentShiftEnd, restStartObj, restEndObj);
+            // 下次下班时间始终显示（用于参考）
+            nextEndSpan.textContent = formatNextEnd(nextEnd);
+
+            // 根据状态设置倒计时和已工作时长
+            if (status === '已下班 🎉') {
+                // 下班后：倒计时归零/下班提示，工作时长占位
+                countdownDisplay.textContent = '下班啦 🎉';
+                workStatusSpan.textContent = status;
+                workedDisplay.textContent = '已工作 --小时--分--秒';
+            } else if (status === '未上班 🌅') {
+                // 未上班：倒计时显示今天下班剩余，工作时长占位
+                const remainingMs = nextEnd - now;
+                countdownDisplay.textContent = formatRemaining(remainingMs);
+                workStatusSpan.textContent = status;
+                workedDisplay.textContent = '已工作 --小时--分--秒';
+            } else if (status === '上班中 💼') {
+                // 上班中：正常倒计时（距离当前班次结束）
+                if (currentShiftEnd) {
+                    const remainingMs = currentShiftEnd - now;
+                    countdownDisplay.textContent = formatRemaining(remainingMs);
                 } else {
-                    // 无有效午休，按全时段工作
-                    const totalSeconds = Math.floor((Math.min(now.getTime(), currentShiftEnd.getTime()) - currentShiftStart.getTime()) / 1000);
-                    workedSeconds = Math.max(0, totalSeconds);
+                    countdownDisplay.textContent = '计算异常';
                 }
-                workedDisplay.textContent = `已工作 ${formatWorked(workedSeconds)}`;
+                workStatusSpan.textContent = status;
+
+                // 计算已工作时长
+                if (currentShiftStart && currentShiftEnd) {
+                    const restStartObj = parseTimeStr(restStartVal);
+                    const restEndObj = parseTimeStr(restEndVal);
+                    if (restStartObj && restEndObj) {
+                        const workedSeconds = calculateWorkedSeconds(now, currentShiftStart, currentShiftEnd, restStartObj, restEndObj);
+                        workedDisplay.textContent = `已工作 ${formatWorked(workedSeconds)}`;
+                    } else {
+                        // 无有效午休，按全时段
+                        const totalSeconds = Math.floor((Math.min(now.getTime(), currentShiftEnd.getTime()) - currentShiftStart.getTime()) / 1000);
+                        workedDisplay.textContent = `已工作 ${formatWorked(Math.max(0, totalSeconds))}`;
+                    }
+                } else {
+                    workedDisplay.textContent = '已工作 --小时--分--秒';
+                }
             } else {
-                // 非上班状态显示占位
+                // 兜底
+                countdownDisplay.textContent = formatRemaining(nextEnd - now);
+                workStatusSpan.textContent = status;
                 workedDisplay.textContent = '已工作 --小时--分--秒';
             }
         }
