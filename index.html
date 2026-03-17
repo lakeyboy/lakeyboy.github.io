@@ -206,6 +206,14 @@
             width: auto;
             max-width: 100%;
         }
+        .status-top {
+            display: block;
+            font-size: 1.4rem;
+            padding: 14px 26px;
+            background: linear-gradient(90deg, #ffca7f, #fad6b0);
+            border: 2px solid #f3a15d;
+            box-shadow: 0 6px 0 rgba(180, 110, 40, 0.75);
+        }
         .worked-badge {
             display: inline-block;
             background: #d8d0c0;
@@ -277,6 +285,59 @@
         .current-time-value::-webkit-scrollbar-thumb {
             background: #b28b64; border-radius: 10px;
         }
+
+        /* 赞助弹窗 */
+        .modal-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.45);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            z-index: 2000;
+        }
+        .modal-overlay.active {
+            display: flex;
+        }
+        .modal {
+            width: min(420px, 100%);
+            background: rgba(255, 255, 255, 0.96);
+            border-radius: 18px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.25);
+            padding: 22px;
+            text-align: center;
+            position: relative;
+        }
+        .modal h2 {
+            margin: 0 0 14px;
+            font-size: 1.4rem;
+        }
+        .modal p {
+            margin: 0 0 18px;
+            color: #5b4a3b;
+        }
+        .modal img {
+            width: 180px;
+            height: 180px;
+            object-fit: contain;
+            border-radius: 14px;
+            border: 1px solid rgba(0,0,0,0.08);
+            margin-bottom: 16px;
+        }
+        .modal-close {
+            position: absolute;
+            top: 12px;
+            right: 12px;
+            width: 32px;
+            height: 32px;
+            border: none;
+            background: rgba(0,0,0,0.12);
+            border-radius: 50%;
+            color: white;
+            font-size: 18px;
+            cursor: pointer;
+        }
     </style>
 </head>
 <body>
@@ -285,6 +346,11 @@
         <span>⏳</span> 工时·午休·纯净版
     </h1>
     <div class="sub">精确到秒 · 下班后自动隐藏模块 · 无冗余信息</div>
+
+    <!-- 重点状态显示（上班/未上班/已下班） -->
+    <div style="text-align: center; margin-bottom: 14px;">
+        <span class="status-badge status-top" id="topStatus">⚡ 计算中...</span>
+    </div>
 
     <!-- 当前时间显示 -->
     <div class="current-time-box">
@@ -329,11 +395,6 @@
         </div>
     </div>
 
-    <!-- 状态标签（始终显示） -->
-    <div style="text-align: center;">
-        <span class="status-badge" id="workStatus">⚡ 计算中...</span>
-    </div>
-
     <!-- 已工作时长容器（可隐藏） -->
     <div id="workedContainer">
         <span class="worked-badge" id="workedDisplay">已工作 --小时--分--秒</span>
@@ -341,8 +402,22 @@
 
     <!-- 底部小工具：重置默认值 + 说明 -->
     <div class="footer-note">
-        <button id="resetDefault">🔄 重置 09:00–18:00 午休12:00–13:00</button>
+        <div style="display: flex; gap: 10px; flex-wrap: wrap; justify-content: center;">
+            <button id="resetDefault">🔄 重置 09:00–18:00 午休12:00–13:00</button>
+            <button id="sponsorBtn" style="background: #ffb347; color: #2d1c00; border: none; border-radius: 40px; padding: 12px 24px; font-weight: 600; cursor: pointer; box-shadow: 0 3px 0 rgba(170,100,0,0.8);">☕ 支持一下</button>
+        </div>
         <p style="margin-top: 12px;">💡 下班后倒计时&工时自动隐藏 · 未上班仅显示倒计时</p>
+    </div>
+</div>
+
+<!-- 赞助二维码弹窗 -->
+<div class="modal-overlay" id="sponsorModal">
+    <div class="modal">
+        <button class="modal-close" id="closeSponsor">×</button>
+        <h2>支持一下作者</h2>
+        <p>扫一扫二维码，给我买杯咖啡 ☕</p>
+        <img src="https://via.placeholder.com/180x180.png?text=QR+Code" alt="赞助二维码" />
+        <p style="font-size: 0.85rem; color: #7b6a5d; margin-top: 10px;">(或直接通过 GitHub Sponsor / 赏金方式支持)</p>
     </div>
 </div>
 
@@ -355,13 +430,16 @@
         const restEndInput = document.getElementById('restEnd');
         const liveClockSpan = document.getElementById('liveClock');
         const countdownDisplay = document.getElementById('countdownDisplay');
-        const workStatusSpan = document.getElementById('workStatus');
+        const topStatusSpan = document.getElementById('topStatus');
         const workedDisplay = document.getElementById('workedDisplay');
         const resetBtn = document.getElementById('resetDefault');
 
         // 容器
         const countdownContainer = document.getElementById('countdownContainer');
         const workedContainer = document.getElementById('workedContainer');
+        const sponsorBtn = document.getElementById('sponsorBtn');
+        const sponsorModal = document.getElementById('sponsorModal');
+        const closeSponsor = document.getElementById('closeSponsor');
 
         const STORAGE_KEY = 'workTimeConfigV5'; // 新版本存储键
 
@@ -403,11 +481,23 @@
             updateRemaining();
         }
 
+        function openSponsorModal() {
+            sponsorModal.classList.add('active');
+        }
+        function closeSponsorModal() {
+            sponsorModal.classList.remove('active');
+        }
+
         [startInput, endInput, restStartInput, restEndInput].forEach(inp => {
             inp.addEventListener('change', () => { saveTimes(); updateRemaining(); });
             inp.addEventListener('input', () => { saveTimes(); updateRemaining(); });
         });
         resetBtn.addEventListener('click', resetToDefault);
+        sponsorBtn.addEventListener('click', openSponsorModal);
+        closeSponsor.addEventListener('click', closeSponsorModal);
+        sponsorModal.addEventListener('click', (event) => {
+            if (event.target === sponsorModal) closeSponsorModal();
+        });
 
         function parseTimeStr(timeStr) {
             if (!timeStr || !timeStr.includes(':')) return null;
@@ -559,7 +649,7 @@
 
             if (!startVal || !endVal) {
                 countdownDisplay.textContent = '请设置时间';
-                workStatusSpan.textContent = '⏳ 等待输入';
+                topStatusSpan.textContent = '⏳ 等待输入';
                 workedDisplay.textContent = '已工作 --小时--分--秒';
                 countdownContainer.style.display = 'block';
                 workedContainer.style.display = 'block';
@@ -569,7 +659,7 @@
             const details = computeDetails(now, startVal, endVal);
             if (!details) {
                 countdownDisplay.textContent = '时间格式有误';
-                workStatusSpan.textContent = '⚠️ 错误';
+                topStatusSpan.textContent = '⚠️ 错误';
                 workedDisplay.textContent = '已工作 --小时--分--秒';
                 countdownContainer.style.display = 'block';
                 workedContainer.style.display = 'block';
@@ -577,7 +667,7 @@
             }
 
             const { nextEnd, status, currentShiftStart, currentShiftEnd } = details;
-            workStatusSpan.textContent = status;
+            topStatusSpan.textContent = status;
 
             if (status === '已下班 🎉') {
                 countdownContainer.style.display = 'none';
